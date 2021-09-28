@@ -1,5 +1,5 @@
-mod spec;
 mod deps;
+mod spec;
 
 use clap::Clap;
 use indoc::indoc;
