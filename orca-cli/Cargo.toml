@@ -6,5 +6,13 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+thiserror = "1.0.29"
+log = "0.4.14"
+pretty_env_logger = "0.4.0"
 clap = { version = "3.0.0-beta.4" }
 indoc = "1.0.3"
+virt = { git = "https://github.com/libvirt/libvirt-rust.git" }
+structured-packer-logs = { git = "https://github.com/MathiasPius/structured-packer-logs" }
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+semver = { version = "1.0.4", features = ["serde"] }
