@@ -1,196 +1,41 @@
-use petgraph::{stable_graph::StableGraph, Direction};
-
 use super::spec::{BuildSpec, DependencyDeclaration};
+use dependency_graph::Node;
 
-pub trait Node {
-    type DependencyType: Dependency;
+impl Node for BuildSpec {
+    type DependencyType = DependencyDeclaration;
 
-    fn dependencies(&self) -> Self::DependencyType;
-}
+    fn dependencies(&self) -> &[Self::DependencyType] {
+        &self.dependencies[..]
+    }
 
-pub trait Dependency {
-    fn matches(node: &impl Node) -> bool;
-}
-
-
-
-#[derive(Debug, Clone)]
-pub enum DependencyNode<'a> {
-    Build(&'a BuildSpec),
-    Lookup(&'a DependencyDeclaration),
-}
-
-impl<'a> From<&'a BuildSpec> for DependencyNode<'a> {
-    fn from(spec: &'a BuildSpec) -> Self {
-        DependencyNode::Build(spec)
+    fn matches(&self, dependency: &Self::DependencyType) -> bool {
+        dependency.name == self.name && dependency.version.matches(&self.version)
     }
 }
-
-impl<'a> From<&'a DependencyDeclaration> for DependencyNode<'a> {
-    fn from(declaration: &'a DependencyDeclaration) -> Self {
-        DependencyNode::Lookup(declaration)
-    }
-}
-
-type InnerGraph<'a> = StableGraph<DependencyNode<'a>, &'a DependencyDeclaration>;
-pub struct DependencyGraph<'a> {
-    builds: &'a Vec<BuildSpec>,
-    graph: InnerGraph<'a>,
-}
-
-impl<'a> From<&'a Vec<BuildSpec>> for DependencyGraph<'a> {
-    fn from(builds: &'a Vec<BuildSpec>) -> Self {
-        let mut graph = InnerGraph::<'a>::new();
-
-        let mut nodes = Vec::new();
-
-        // Populate our graph with all our images
-        for spec in builds {
-            nodes.push((spec, graph.add_node(DependencyNode::from(spec))));
-        }
-
-        for (spec, node) in nodes.iter() {
-            for dependency in &spec.dependencies {
-                // See if we can find a build in our own build tree that matches the VersionReq
-                if let Some((_, dependent_node)) = nodes.iter().find(|(build, _)| {
-                    build.name == dependency.name && dependency.version.matches(&build.version)
-                }) {
-                    // If we can, we will add it as a dependency in our build graph.
-                    graph.add_edge(*node, *dependent_node, dependency);
-                } else {
-                    // If we can't find a build in our own BuildSpec list that matches our dependency,
-                    // we'll have to inject an external dependency lookup into the tree.
-                    let external_dependency = graph.add_node(DependencyNode::Lookup(dependency));
-                    graph.add_edge(*node, external_dependency, dependency);
-                }
-            }
-        }
-
-        DependencyGraph { graph, builds }
-    }
-}
-
-impl<'a> DependencyGraph<'a> {}
-
-impl<'a> Iterator for DependencyGraph<'a> {
-    type Item = DependencyNode<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for index in self.graph.node_indices() {
-            if self
-                .graph
-                .neighbors_directed(index, Direction::Outgoing)
-                .count()
-                == 0
-            {
-                return self.graph.remove_node(index);
-            }
-        }
-
-        None
-    }
-}
-
-
-/*
-impl<'a> DependencyGraph<'a> {
-    /// The DependencyGraph is consumed, because the resolution mutates
-    /// the graph state, and may leave it in an incomplete state.
-    pub fn resolve<F: FnMut(BuildSpec)>(mut self, callback: F) {
-        let mut build_queue = vec![];
-
-        // Find all nodes in the graph with no Outgoing connections
-        // since this means that they do not have any dependencies
-        // and therefore can be built immediately.
-        for node in self.graph.node_indices() {
-            if self.graph.neighbors_directed(node, Direction::Outgoing).count() == 0 {
-                build_queue.push(node);
-            }
-        }
-
-        while let Some(node) = build_queue.pop() {
-            debug!("Built {:#?}", self.graph.node_weight(node).unwrap().0);
-            // Find all BuildSpecs which depend on this
-            let dependents = self.graph.neighbors_directed(node, Direction::Incoming);
-            for dependent in dependents {
-                // If the dependent only has one dependency (us), schedule it.
-                let dependencies: Vec<_> = self.graph
-                    .neighbors_directed(dependent, Direction::Outgoing)
-                    .collect();
-                if dependencies.len() == 1 {
-                    println!(
-                        "Scheduling dependent image: {:?}",
-                        self.graph.node_weight(dependent).unwrap().0
-                    );
-                    build_queue.push(dependent);
-                } else {
-                    println!(
-                        "Dependent image {:?} still has other dependencies: {:?}",
-                        self.graph.node_weight(dependent).unwrap().0,
-                        dependencies
-                            .iter()
-                            .map(|id| self.graph.node_weight(*id).unwrap().0)
-                            .collect::<Vec<_>>()
-                    );
-                }
-            }
-            self.graph.remove_node(node);
-        }
-    }
-}
-
-impl<'a> From<&'a Vec<BuildSpec>> for DependencyGraph<'a> {
-    fn from(builds: &'a Vec<BuildSpec>) -> Self {
-        let mut graph = InnerGraph::<'a>::new();
-
-        let mut nodes = Vec::new();
-
-        // Populate our graph with all our images
-        for spec in builds {
-            nodes.push((spec, graph.add_node((&spec.name, &spec.version))));
-        }
-
-        for (spec, node) in nodes.iter() {
-            for dependency in &spec.dependencies {
-                for (dep_spec, dep_node) in nodes.iter() {
-                    if dep_spec.name == dependency.name && dependency.version.matches(&dep_spec.version)
-                    {
-                        graph.add_edge(*node, *dep_node, (&spec.name, &dependency.version));
-                    }
-                }
-            }
-        }
-
-        DependencyGraph {
-            graph,
-            builds
-        }
-    }
-}
-*/
 
 #[cfg(test)]
 mod tests {
 
+    use crate::build::spec::{BuildSpec, DependencyDeclaration};
+    use dependency_graph::{DependencyGraph, Step};
     use semver::{BuildMetadata, Prerelease};
-    use crate::build::{deps::{DependencyGraph, DependencyNode}, spec::{BuildSpec, DependencyDeclaration}};
 
     #[test]
     fn test_dependencies_synchronous() {
         let build = build_test_graph();
-        let graph = DependencyGraph::from(&build);
+        let graph = DependencyGraph::from(&build[..]);
 
         for node in graph {
             match node {
-                DependencyNode::Build(build) => println!("build: {:?}", build),
-                DependencyNode::Lookup(lookup) => println!("lookup: {:?}", lookup),
+                Step::Resolved(build) => println!("build: {:?}", build),
+                Step::Unresolved(lookup) => println!("lookup: {:?}", lookup),
             }
         }
     }
 
     #[test]
     fn test_generate_dependency_graph() {
-        DependencyGraph::from(&build_test_graph());
+        DependencyGraph::from(&build_test_graph()[..]);
     }
 
     fn build_test_graph() -> Vec<BuildSpec> {
