@@ -1,6 +1,6 @@
 [package]
 name = "dependency-graph"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Mathias Pius <contact@pius.io>"]
 description = "Library for building and resolving dependency graphs"
 keywords = ["dependency", "graph", "digraph", "resolution"]

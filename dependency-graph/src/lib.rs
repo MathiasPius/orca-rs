@@ -15,7 +15,7 @@ pub trait Node {
 
 /// Wrapper around dependency graph nodes.
 /// Since a graph might have dependencies that cannot be resolved internally,
-/// this wrapper is necessary to differentiate between internally resolved and 
+/// this wrapper is necessary to differentiate between internally resolved and
 /// externally (unresolved) dependencies.
 /// An Unresolved dependency does not necessarily mean that it *cannot* be resolved,
 /// only that no Node within the graph fulfills it.
@@ -251,5 +251,67 @@ mod tests {
                 }],
             },
         ]
+    }
+
+    #[test]
+    fn test_internally_resolved() {
+        let packages = vec![
+            Package {
+                name: "base",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![],
+            },
+            Package {
+                name: "derived",
+                version: semver::Version {
+                    major: 3,
+                    minor: 2,
+                    patch: 0,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![Dependency {
+                    name: "base",
+                    version: "=1.2.3".parse().unwrap(),
+                }],
+            },
+            Package {
+                name: "second_order",
+                version: semver::Version {
+                    major: 11,
+                    minor: 2,
+                    patch: 4,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![Dependency {
+                    name: "derived",
+                    version: ">=3.0.0".parse().unwrap(),
+                }],
+            },
+        ];
+
+        let graph = DependencyGraph::from(&packages[..]);
+
+        for package in graph {
+            match package {
+                // Print out the package name so we can verify the order ourselves
+                Step::Resolved(package) => println!("Building {}!", package.name),
+
+                // Since we know that all our Packages only have internal references to each other,
+                // we can safely ignore any Unresolved steps in the graph.
+                //
+                // If for example `second_order` required some unknown package `external_package`,
+                // iterating over our graph would yield that as a Step::Unresolved *before* 
+                // the `second_order` package.
+                Step::Unresolved(_) => unreachable!()
+            }
+        }
     }
 }
