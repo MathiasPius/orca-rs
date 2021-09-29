@@ -2,13 +2,13 @@ use semver::{Version, VersionReq};
 
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct DependencyDeclaration {
     pub name: String,
     pub version: VersionReq,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct BuildSpec {
     pub name: String,
     pub version: Version,
