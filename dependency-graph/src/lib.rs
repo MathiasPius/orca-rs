@@ -1,9 +1,10 @@
 use petgraph::{stable_graph::StableDiGraph, Direction};
 
-/// The Node trait must be implemented by the type you wish
+/// Must be implemented by the type you wish
 /// to build a dependency graph for. See the README.md for an example
 pub trait Node {
-    /// This is the type which encodes a dependency relationship.
+    /// Encodes a dependency relationship. In a Package Manager dependency graph for intance, this might be a (package name, version) tuple.
+    /// It might also just be the exact same type as the one that implements the Node trait, in which case `Node::matches` can be implemented through simple equality.
     type DependencyType;
 
     /// Returns a slice of dependencies for this Node
@@ -33,15 +34,15 @@ impl<'a, N: Node> Step<'a, N> {
     }
 }
 
-/// The `DependencyGraph` structure builds an internal Directed Graph, which can then be traversed
+/// The [`DependencyGraph`] structure builds an internal [Directed Graph](`petgraph::stable_graph::StableDiGraph`), which can then be traversed
 /// in an order which ensures that dependent Nodes are visited before their parents.
 pub struct DependencyGraph<'a, N: Node> {
     graph: StableDiGraph<Step<'a, N>, &'a N::DependencyType>,
 }
 
-/// The only way to build a DependencyGraph is from a slice of objects implementing `Node`.
+/// The only way to build a [`DependencyGraph`] is from a slice of objects implementing [`Node`].
 /// The graph references the original items, meaning the objects cannot be modified while
-/// the DependencyGraph holds a reference to them.
+/// the [`DependencyGraph`] holds a reference to them.
 impl<'a, N> From<&'a [N]> for DependencyGraph<'a, N>
 where
     N: Node,
@@ -80,8 +81,9 @@ impl<'a, N> DependencyGraph<'a, N>
 where
     N: Node,
 {
-    /// Returns `true` if all of the graph nodes only have dependencies which can be resolved internally, or no dependencies at all.
-    pub fn is_internally_resolved(&self) -> bool {
+    /// True if all graph [`Node`]s have only references to other internal [`Node`]s.
+    /// That is, there are no unresolved dependencies between nodes.
+    pub fn is_internally_resolvable(&self) -> bool {
         self.graph.node_weights().all(Step::is_resolved)
     }
 }
@@ -149,7 +151,7 @@ mod tests {
         let build = build_test_graph();
         let graph = DependencyGraph::from(&build[..]);
 
-        assert!(!graph.is_internally_resolved());
+        assert!(!graph.is_internally_resolvable());
 
         for node in graph {
             match node {
@@ -308,9 +310,9 @@ mod tests {
                 // we can safely ignore any Unresolved steps in the graph.
                 //
                 // If for example `second_order` required some unknown package `external_package`,
-                // iterating over our graph would yield that as a Step::Unresolved *before* 
+                // iterating over our graph would yield that as a Step::Unresolved *before*
                 // the `second_order` package.
-                Step::Unresolved(_) => unreachable!()
+                Step::Unresolved(_) => unreachable!(),
             }
         }
     }
