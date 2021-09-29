@@ -4,7 +4,7 @@ version = "0.1.3"
 authors = ["Mathias Pius <contact@pius.io>"]
 description = "Library for building and resolving dependency graphs"
 keywords = ["dependency", "graph", "digraph", "resolution"]
-repository = "https://github.com/MathiasPius/orca-rs/dependency-graph"
+repository = "https://github.com/MathiasPius/orca-rs/tree/master/dependency-graph"
 license = "MIT"
 edition = "2018"
 
