@@ -1,12 +1,24 @@
 use petgraph::{stable_graph::StableDiGraph, Direction};
 
+/// The Node trait must be implemented by the type you wish
+/// to build a dependency graph for. See the README.md for an example
 pub trait Node {
+    /// This is the type which encodes a dependency relationship.
     type DependencyType;
 
+    /// Returns a slice of dependencies for this Node
     fn dependencies(&self) -> &[Self::DependencyType];
+
+    /// Returns true if the `dependency` can be met by us.
     fn matches(&self, dependency: &Self::DependencyType) -> bool;
 }
 
+/// Wrapper around dependency graph nodes.
+/// Since a graph might have dependencies that cannot be resolved internally,
+/// this wrapper is necessary to differentiate between internally resolved and 
+/// externally (unresolved) dependencies.
+/// An Unresolved dependency does not necessarily mean that it *cannot* be resolved,
+/// only that no Node within the graph fulfills it.
 pub enum Step<'a, N: Node> {
     Resolved(&'a N),
     Unresolved(&'a N::DependencyType),
@@ -21,10 +33,15 @@ impl<'a, N: Node> Step<'a, N> {
     }
 }
 
+/// The `DependencyGraph` structure builds an internal Directed Graph, which can then be traversed
+/// in an order which ensures that dependent Nodes are visited before their parents.
 pub struct DependencyGraph<'a, N: Node> {
     graph: StableDiGraph<Step<'a, N>, &'a N::DependencyType>,
 }
 
+/// The only way to build a DependencyGraph is from a slice of objects implementing `Node`.
+/// The graph references the original items, meaning the objects cannot be modified while
+/// the DependencyGraph holds a reference to them.
 impl<'a, N> From<&'a [N]> for DependencyGraph<'a, N>
 where
     N: Node,
@@ -45,7 +62,7 @@ where
                 // Check to see if we can resolve this dependency internally.
                 if let Some((_, dependent)) = nodes.iter().find(|(dep, _)| dep.matches(dependency))
                 {
-                    // IF we can, just add an edge between the two nodes.
+                    // If we can, just add an edge between the two nodes.
                     graph.add_edge(*index, *dependent, dependency);
                 } else {
                     // If not, create a new "Unresolved" node, and create an edge to that.
@@ -63,11 +80,15 @@ impl<'a, N> DependencyGraph<'a, N>
 where
     N: Node,
 {
+    /// Returns `true` if all of the graph nodes only have dependencies which can be resolved internally, or no dependencies at all.
     pub fn is_internally_resolved(&self) -> bool {
         self.graph.node_weights().all(Step::is_resolved)
     }
 }
 
+/// Iterate over the DependencyGraph in an order which ensures dependencies are resolved before each Node is visited.
+/// Note: If a `Step::Unresolved` node is returned, it is the caller's responsibility to ensure the dependency is resolved
+/// before continuing.
 impl<'a, N> Iterator for DependencyGraph<'a, N>
 where
     N: Node,
