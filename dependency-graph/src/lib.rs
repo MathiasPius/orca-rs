@@ -91,3 +91,144 @@ where
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{DependencyGraph, Node, Step};
+    use semver::{BuildMetadata, Prerelease, Version, VersionReq};
+
+    #[derive(Debug)]
+    struct Package {
+        name: &'static str,
+        version: Version,
+        dependencies: Vec<Dependency>,
+    }
+
+    #[derive(Debug)]
+    struct Dependency {
+        name: &'static str,
+        version: VersionReq,
+    }
+
+    impl Node for Package {
+        type DependencyType = Dependency;
+
+        fn dependencies(&self) -> &[Self::DependencyType] {
+            &self.dependencies[..]
+        }
+
+        fn matches(&self, dependency: &Self::DependencyType) -> bool {
+            self.name == dependency.name && dependency.version.matches(&self.version)
+        }
+    }
+
+    #[test]
+    fn test_dependencies_synchronous() {
+        let build = build_test_graph();
+        let graph = DependencyGraph::from(&build[..]);
+
+        assert!(!graph.is_internally_resolved());
+
+        for node in graph {
+            match node {
+                Step::Resolved(build) => println!("build: {:?}", build.name),
+                Step::Unresolved(lookup) => println!("lookup: {:?}", lookup.name),
+            }
+        }
+    }
+
+    #[test]
+    fn test_generate_dependency_graph() {
+        DependencyGraph::from(&build_test_graph()[..]);
+    }
+
+    fn build_test_graph() -> Vec<Package> {
+        vec![
+            Package {
+                name: "base",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![],
+            },
+            Package {
+                name: "derived",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![Dependency {
+                    name: "base",
+                    version: ">=1.0.0".parse().unwrap(),
+                }],
+            },
+            Package {
+                name: "second_order",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![Dependency {
+                    name: "derived",
+                    version: ">=1.0.0".parse().unwrap(),
+                }],
+            },
+            Package {
+                name: "converged",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![
+                    Dependency {
+                        name: "base",
+                        version: ">=1.0.0".parse().unwrap(),
+                    },
+                    Dependency {
+                        name: "derived",
+                        version: ">=1.0.0".parse().unwrap(),
+                    },
+                ],
+            },
+            Package {
+                name: "independent",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![],
+            },
+            Package {
+                name: "external",
+                version: semver::Version {
+                    major: 1,
+                    minor: 2,
+                    patch: 3,
+                    pre: Prerelease::new("").unwrap(),
+                    build: BuildMetadata::EMPTY,
+                },
+                dependencies: vec![Dependency {
+                    name: "unknown",
+                    version: ">=1.0.0".parse().unwrap(),
+                }],
+            },
+        ]
+    }
+}
