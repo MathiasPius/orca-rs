@@ -1,7 +1,7 @@
 # dependency-graph
 Dependency-graph is a minimal library, exposing a `DependencyGraph` structure and a single `Node` trait.
 
-To use the library, simply implement the `Node` trait's two functions for the object you wish to.
+To use the library, simply implement the `Node` trait's two functions for the object you wish to resolve dependencies for.
 
 # Example
 In this example, we'll be using `dependency-graph` to resolve dependencies between our `Package` structs. We'll be using a custom `Dependency` type, because we want to include Semantic Versioning constraints in our dependencies. That way we'll be able to say that our package `mypackage` depends on version 2.0 of some package `some-library` for instance.
