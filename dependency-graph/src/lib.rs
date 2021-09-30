@@ -32,6 +32,20 @@ impl<'a, N: Node> Step<'a, N> {
             Step::Unresolved(_) => false,
         }
     }
+
+    pub fn as_resolved(&self) -> Option<&N> {
+        match self {
+            Step::Resolved(node) => Some(node),
+            Step::Unresolved(_) => None,
+        }
+    }
+
+    pub fn as_unresolved(&self) -> Option<&N::DependencyType> {
+        match self {
+            Step::Resolved(_) => None,
+            Step::Unresolved(dependency) => Some(dependency),
+        }
+    }
 }
 
 /// The [`DependencyGraph`] structure builds an internal [Directed Graph](`petgraph::stable_graph::StableDiGraph`), which can then be traversed
@@ -85,6 +99,13 @@ where
     /// That is, there are no unresolved dependencies between nodes.
     pub fn is_internally_resolvable(&self) -> bool {
         self.graph.node_weights().all(Step::is_resolved)
+    }
+
+    /// Get an iterator over unresolved dependencies, without traversing the whole graph.
+    /// Useful for doing pre-validation or pre-fetching of external dependencies before
+    /// starting to resolve internal dependencies.
+    pub fn unresolved_dependencies(&self) -> impl Iterator<Item = &N::DependencyType> {
+        self.graph.node_weights().filter_map(Step::as_unresolved)
     }
 }
 
