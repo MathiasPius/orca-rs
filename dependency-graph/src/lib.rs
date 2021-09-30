@@ -183,6 +183,21 @@ mod tests {
     }
 
     #[test]
+    fn test_unresolved_dependencies() {
+        let build = build_test_graph();
+        let graph = DependencyGraph::from(&build[..]);
+
+        assert!(!graph.is_internally_resolvable());
+
+        let unresolved_dependencies: Vec<_> = graph
+            .unresolved_dependencies()
+            .map(|dep| dep.name)
+            .collect();
+
+        assert_eq!(unresolved_dependencies, vec!["unknown", "remote"]);
+    }
+
+    #[test]
     fn test_generate_dependency_graph() {
         DependencyGraph::from(&build_test_graph()[..]);
     }
@@ -268,10 +283,16 @@ mod tests {
                     pre: Prerelease::new("").unwrap(),
                     build: BuildMetadata::EMPTY,
                 },
-                dependencies: vec![Dependency {
-                    name: "unknown",
-                    version: ">=1.0.0".parse().unwrap(),
-                }],
+                dependencies: vec![
+                    Dependency {
+                        name: "unknown",
+                        version: ">=1.0.0".parse().unwrap(),
+                    },
+                    Dependency {
+                        name: "remote",
+                        version: "=3.0.0".parse().unwrap(),
+                    },
+                ],
             },
         ]
     }
