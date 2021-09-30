@@ -1,8 +1,8 @@
-use super::spec::{BuildSpec, DependencyDeclaration};
+use super::spec::{BuildSpec, Dependency};
 use dependency_graph::Node;
 
 impl Node for BuildSpec {
-    type DependencyType = DependencyDeclaration;
+    type DependencyType = Dependency;
 
     fn dependencies(&self) -> &[Self::DependencyType] {
         &self.dependencies[..]

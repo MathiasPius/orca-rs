@@ -2,4 +2,5 @@
 members = [
   "orca-cli",
   "dependency-graph",
+  "packer-interop",
 ]
