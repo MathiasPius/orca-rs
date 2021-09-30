@@ -18,4 +18,4 @@ semver = { version = "1.0.4", features = ["serde"] }
 
 
 structured-packer-logs = { git = "https://github.com/MathiasPius/structured-packer-logs" }
-dependency-graph = { path = "../dependency-graph" }
+dependency-graph = "0.1.5"

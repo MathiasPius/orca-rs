@@ -73,7 +73,17 @@ dependencies = [
 
 [[package]]
 name = "dependency-graph"
-version = "0.1.0"
+version = "0.1.5"
+dependencies = [
+ "petgraph",
+ "semver",
+]
+
+[[package]]
+name = "dependency-graph"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5143247629540606d0888beae9ca0e0b9a81a32151bfecd0b2be4a961155c24d"
 dependencies = [
  "petgraph",
 ]
@@ -187,7 +197,7 @@ name = "orca-cli"
 version = "0.1.0"
 dependencies = [
  "clap",
- "dependency-graph",
+ "dependency-graph 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "indoc",
  "log",
  "pretty_env_logger",
